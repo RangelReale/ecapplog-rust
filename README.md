@@ -6,7 +6,7 @@ Rust client for the [ECAppLog](https://github.com/RangelReale/ecapplog) logging 
 
 ```toml
 [dependencies]
-ecapplog = "0.1"
+ecapplog = "1.0"
 ```
 
 ## Example
@@ -42,7 +42,7 @@ in a logging facade it never calls.
 ### `log`
 
 ```toml
-ecapplog = { version = "0.1", features = ["log"] }
+ecapplog = { version = "1.0", features = ["log"] }
 ```
 
 ```rust
@@ -62,7 +62,7 @@ the GUI renders `category [module::path]`.
 ### `tracing`
 
 ```toml
-ecapplog = { version = "0.1", features = ["tracing"] }
+ecapplog = { version = "1.0", features = ["tracing"] }
 ```
 
 ```rust

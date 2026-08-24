@@ -41,7 +41,7 @@
 //! * `tracing` feature -- [`TracingLayer`], a `tracing_subscriber` layer.
 //!
 //! ```toml
-//! ecapplog = { version = "0.1", features = ["tracing"] }
+//! ecapplog = { version = "1.0", features = ["tracing"] }
 //! ```
 //!
 //! # The protocol
