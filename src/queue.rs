@@ -22,6 +22,12 @@ use std::time::Duration;
 use crate::record::Record;
 
 /// What a [`Queue::pop`] found.
+//
+// `Item` carries a whole `Record` and the other two variants carry nothing, so the enum is as large
+// as the record. Boxing it -- clippy's suggestion -- would put a malloc and a free on the
+// per-record path and defeat the preallocated `VecDeque`, to save moving ~200 bytes into a value
+// that is matched on the very next line.
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Pop {
     /// An entry to send.
     Item(Record),

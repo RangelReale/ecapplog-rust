@@ -60,10 +60,11 @@ jobs:
       - run: cargo build ${{ matrix.features }}
 
   msrv:
-    # edition 2024 needs 1.85; the manifest claims it, so prove it.
+    # edition 2024 needs 1.85, but the let-chains in the adapters need 1.88; the manifest claims
+    # 1.88, so prove it. --all-targets so tests and examples are held to the floor as well.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: dtolnay/rust-toolchain@1.88.0
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --all-features
+      - run: cargo build --all-features --all-targets

@@ -2,7 +2,7 @@
 name = "ecapplog"
 version = "1.0.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 description = "Client for the ECAppLog debug log viewer, with log and tracing adapters"
 repository = "https://github.com/RangelReale/ecapplog-rust"
