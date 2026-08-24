@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  # A library, so no lockfile is committed; fail rather than silently resolving something new.
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  test:
+    # The client is used from both, and the integration tests exercise real sockets, where Windows
+    # and Unix differ in how a closing peer reports itself.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --all-features --all-targets
+      - name: Doc tests
+        run: cargo test --all-features --doc
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-features --all-targets -- -D warnings
+      - name: Docs build without warnings
+        run: cargo doc --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
+  features:
+    # Each adapter is optional, so every combination has to keep compiling on its own -- a `use`
+    # that only resolves with another feature enabled is easy to add and invisible locally.
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features:
+          - --no-default-features
+          - --features log
+          - --features tracing
+          - --all-features
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build ${{ matrix.features }}
+
+  msrv:
+    # edition 2024 needs 1.85; the manifest claims it, so prove it.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --all-features
