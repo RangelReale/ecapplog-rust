@@ -91,6 +91,12 @@ Click a row in the GUI to see it laid out in the details pane. For level filteri
 filter — `layer.with_filter(EnvFilter::from_default_env())` — rather than the layer's own
 `max_level`.
 
+**A dependency that logs through the `log` facade lands in its own tab too.** `tracing-log`'s bridge
+gives every such record one call site whose target is `log`, so taken at face value the whole facade
+is a single tab with no call sites in it; the layer reads the record's real target, module path, file
+and line back off the event and files by those instead. Nothing is needed to turn this on beyond the
+bridge an application already installs.
+
 ## Behaviour
 
 * **Logging never blocks on the network.** Entries go into a bounded queue that a background thread
