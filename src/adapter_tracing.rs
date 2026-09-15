@@ -5,6 +5,18 @@
 //! it happens to contain JSON (`ecapplog/src/JsonFormat.cpp`). So the event's message becomes the
 //! message, and its fields plus the enclosing spans are serialised as JSON into `source`, where the
 //! details pane renders them properly instead of being flattened into the message text.
+//!
+//! # A record from the `log` facade
+//!
+//! `tracing-log`'s bridge emits every `log` record through one static call site per level, whose
+//! metadata names the target `log` and carries no module path, file or line at all; the record's own
+//! four ride as `log.target`, `log.module_path`, `log.file` and `log.line` fields instead. Taken at
+//! face value that is one GUI tab called `log` holding every dependency that speaks through the
+//! facade, with a call site on none of them. So [`NormalizeEvent`] recovers the real metadata and
+//! this layer files the record by it, which also makes those four fields the category, the original
+//! category and the call site rather than four entries in the details pane.
+//!
+//! [`NormalizeEvent`]: tracing_log::NormalizeEvent
 
 use std::fmt;
 use std::time::Duration;
@@ -13,6 +25,7 @@ use serde_json::{Map, Value};
 use tracing_core::field::{Field, Visit};
 use tracing_core::span::{Attributes, Id, Record as SpanRecord};
 use tracing_core::{Event, Level, LevelFilter, Metadata, Subscriber};
+use tracing_log::NormalizeEvent as _;
 use tracing_subscriber::layer::{Context, Layer};
 use tracing_subscriber::registry::LookupSpan;
 
@@ -214,6 +227,7 @@ where
         attrs.record(&mut JsonVisitor {
             fields: &mut fields,
             message: &mut message,
+            skip_log_fields: false,
         });
         // A span opened as `span!(..., "text")` puts its text in a `message` field; keep it rather
         // than discarding it, since it is part of that span's identity.
@@ -234,17 +248,24 @@ where
         values.record(&mut JsonVisitor {
             fields,
             message: &mut message,
+            skip_log_fields: false,
         });
     }
 
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
-        let metadata = event.metadata();
+        // A record from the `log` facade arrives under the bridge's own metadata, which names no
+        // target but `log`; this recovers the record's own. `None` is an event `tracing` emitted,
+        // whose metadata is already the right one. See the note at the top of this file.
+        let normalized = event.normalized_metadata();
+        let from_log_facade = normalized.is_some();
+        let metadata = normalized.as_ref().unwrap_or_else(|| event.metadata());
 
         let mut fields = Map::new();
         let mut message = None;
         event.record(&mut JsonVisitor {
             fields: &mut fields,
             message: &mut message,
+            skip_log_fields: from_log_facade,
         });
 
         let category = self.category_for(metadata);
@@ -316,10 +337,21 @@ where
 struct JsonVisitor<'a> {
     fields: &'a mut Map<String, Value>,
     message: &'a mut Option<String>,
+    /// Whether to drop the `log.`-prefixed fields rather than record them.
+    ///
+    /// Set for an event `tracing-log`'s bridge produced, where those four are the record's target,
+    /// module path, file and line -- already read off the normalized metadata and put where the GUI
+    /// draws each of them. Recorded as well they would be the same four facts a second time, in the
+    /// details pane. A prefix rather than four names because the bridge's field set is exactly those
+    /// four and `message`, so nothing a caller wrote can be caught by it.
+    skip_log_fields: bool,
 }
 
 impl JsonVisitor<'_> {
     fn insert(&mut self, field: &Field, value: Value) {
+        if self.skip_log_fields && field.name().starts_with("log.") {
+            return;
+        }
         self.fields.insert(field.name().to_owned(), value);
     }
 }
@@ -407,6 +439,7 @@ mod tests {
             let mut visitor = JsonVisitor {
                 fields: &mut fields,
                 message: &mut message,
+                skip_log_fields: false,
             };
             // Field values are normally supplied by the macros; drive the visitor directly.
             let callsite = tracing_core::callsite::Identifier(&TEST_CALLSITE);

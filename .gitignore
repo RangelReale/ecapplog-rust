@@ -2,3 +2,6 @@
 # A library's lockfile pins nothing for downstream users; leaving it out keeps CI honest about
 # whether the declared version ranges still resolve.
 Cargo.lock
+# An editor's own project directory, which says where a checkout sits and which toolchain a person
+# pointed at it.
+/.idea

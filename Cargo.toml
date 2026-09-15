@@ -1,6 +1,6 @@
 [package]
 name = "ecapplog"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -18,7 +18,7 @@ default = []
 # Both adapters are opt-in: an application that only wants the direct API should not pull in a
 # logging facade it never calls.
 log = ["dep:log"]
-tracing = ["dep:tracing-core", "dep:tracing-subscriber"]
+tracing = ["dep:tracing-core", "dep:tracing-log", "dep:tracing-subscriber"]
 
 [dependencies]
 # The payload is a nine-field JSON object; hand-rolling the string escaping would be the one place
@@ -33,6 +33,12 @@ log = { version = "0.4.30", features = ["std"], optional = true }
 # tracing-core rather than tracing: the layer only consumes events, so it does not need the
 # macros, and depending on the facade from a subscriber crate invites version skew.
 tracing-core = { version = "0.1.36", optional = true }
+# The `log` facade reaches a subscriber through `tracing-log`'s bridge, whose event metadata names
+# the target `log` and carries the record's own target, module path, file and line in fields
+# instead. `NormalizeEvent` reads those back, and recognises a bridged event by callsite identity --
+# so this must be the same `tracing-log` the application's subscriber installed, which cargo's
+# version unification gives as long as nothing in the tree is on another major version.
+tracing-log = { version = "0.2.0", optional = true }
 # `registry` is what makes `LookupSpan` (and therefore span field capture) available; the default
 # feature set additionally drags in `fmt`, `ansi` and a regex-based EnvFilter that this layer
 # never touches.
@@ -42,7 +48,8 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 ], optional = true }
 
 [dev-dependencies]
-# Examples need the facades' macros, which the library itself deliberately does not depend on.
+# The examples and the bridge test need the facades' macros, which the library itself deliberately
+# does not depend on.
 log = "0.4.30"
 tracing = "0.1.44"
 
@@ -52,6 +59,10 @@ required-features = ["log"]
 
 [[example]]
 name = "tracing_layer"
+required-features = ["tracing"]
+
+[[test]]
+name = "tracing_log_bridge"
 required-features = ["tracing"]
 
 [lints.rust]
